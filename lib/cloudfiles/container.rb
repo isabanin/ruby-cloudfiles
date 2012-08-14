@@ -343,6 +343,12 @@ module CloudFiles
       end
     end
 
+    def delete_directory(prefix)
+      each_object(:prefix => prefix) do |obj|
+        delete_object(obj)
+      end
+    end
+
     # Makes a container publicly available via the Cloud Files CDN and returns true upon success.  Throws NoSuchContainerException
     # if the container doesn't exist or if the request fails.
     #
