@@ -234,6 +234,23 @@ module CloudFiles
     end
     alias :list_objects :objects
 
+    def each_object(params = {}, &block)
+      objects_per_request = params.delete(:per_request) || 1000
+      max_objects = params.delete(:max_objects)
+      marker ||= nil
+      processed_objects = 0
+      begin
+        objects(params.merge(:limit => objects_per_request, :marker => marker)).tap do |objects|
+          marker = objects.last
+          processed_objects += objects.size
+          objects.each do |obj|
+            yield(obj)
+          end
+        end
+      end while processed_objects <= count && (max_objects.nil? || processed_objects <= (max_objects - 1))
+    end
+    alias :incrementally_list_objects :objects
+
     # Retrieves a list of all objects in the current container along with their size in bytes, hash, and content_type.
     # If no objects exist, an empty hash is returned.  Throws an InvalidResponseException if the request fails.  Takes a
     # parameter hash as an argument, in the same form as the objects method.
