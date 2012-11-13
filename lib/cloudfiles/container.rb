@@ -42,7 +42,7 @@ module CloudFiles
     def container_metadata
       @metadata ||= (
         begin
-          response = SwiftClient.head_container(self.connection.storageurl, self.connection.authtoken, escaped_name)
+          response = SwiftClient.head_container(self.connection.storageurl, self.connection.authtoken, name)
           resphash = {}
           response.to_hash.select { |k,v| k.match(/^x-container-meta/) }.each { |x| resphash[x[0]] = x[1].to_s }
           {:bytes => response["x-container-bytes-used"].to_i, :count => response["x-container-object-count"].to_i, :metadata => resphash, :container_read => response["x-container-read"], :container_write => response["x-container-write"]}
@@ -58,7 +58,7 @@ module CloudFiles
       if cdn_available?
         @cdn_metadata = (
           begin
-            response = SwiftClient.head_container(self.connection.cdnurl, self.connection.authtoken, escaped_name)
+            response = SwiftClient.head_container(self.connection.cdnurl, self.connection.authtoken, name)
             cdn_enabled = ((response["x-cdn-enabled"] || "").downcase == "true") ? true : false
           rescue ClientException => e
             cdn_enabled = false
@@ -97,7 +97,7 @@ module CloudFiles
       headers = {}
       metadatahash.each{ |key, value| headers['X-Container-Meta-' + CloudFiles.escape(key.to_s.capitalize)] = value.to_s }
       begin
-        SwiftClient.post_container(self.connection.storageurl, self.connection.authtoken, escaped_name, headers)
+        SwiftClient.post_container(self.connection.storageurl, self.connection.authtoken, name, headers)
         self.refresh
         true
       rescue ClientException => e
@@ -176,7 +176,7 @@ module CloudFiles
     def log_retention=(value)
       raise Exception::CDNNotAvailable unless cdn_available?
       begin
-        SwiftClient.post_container(self.connection.cdnurl, self.connection.authtoken, escaped_name, {"x-log-retention" => value.to_s.capitalize})
+        SwiftClient.post_container(self.connection.cdnurl, self.connection.authtoken, name, {"x-log-retention" => value.to_s.capitalize})
         true
       rescue ClientException => e
         raise CloudFiles::Exception::InvalidResponse, "Invalid response code #{e.status}" unless (e.status.to_s == "201" or e.status.to_s == "202")
@@ -226,7 +226,7 @@ module CloudFiles
         end
       end
       begin
-        response = SwiftClient.get_container(self.connection.storageurl, self.connection.authtoken, escaped_name, params[:marker], params[:limit], params[:prefix], params[:delimiter])
+        response = SwiftClient.get_container(self.connection.storageurl, self.connection.authtoken, name, params[:marker], params[:limit], params[:prefix], params[:delimiter])
         return response[1].collect{|o| o['name']}
       rescue ClientException => e
         raise CloudFiles::Exception::InvalidResponse, "Invalid response code #{e.status}" unless (e.status.to_s == "200")
@@ -278,7 +278,7 @@ module CloudFiles
         end
       end
       begin 
-        response = SwiftClient.get_container(self.connection.storageurl, self.connection.authtoken, escaped_name, params[:marker], params[:limit], params[:prefix], params[:delimiter])
+        response = SwiftClient.get_container(self.connection.storageurl, self.connection.authtoken, name, params[:marker], params[:limit], params[:prefix], params[:delimiter])
         return Hash[*response[1].collect{|o| [o['name'],{ :bytes => o["bytes"], :hash => o["hash"], :content_type => o["content_type"], :last_modified => DateTime.parse(o["last_modified"])}] }.flatten]
       rescue ClientException => e
         raise CloudFiles::Exception::InvalidResponse, "Invalid response code #{e.status}" unless (e.status.to_s == "200")
@@ -306,7 +306,7 @@ module CloudFiles
     #   => false
     def object_exists?(objectname)
       begin
-        response = SwiftClient.head_object(self.connection.storageurl, self.connection.authtoken, escaped_name, objectname)
+        response = SwiftClient.head_object(self.connection.storageurl, self.connection.authtoken, name, objectname)
         true
       rescue ClientException => e
         false
@@ -335,7 +335,7 @@ module CloudFiles
     #   => NoSuchObjectException: Object nonexistent_file.txt does not exist
     def delete_object(objectname)
       begin
-        SwiftClient.delete_object(self.connection.storageurl, self.connection.authtoken, escaped_name, objectname)
+        SwiftClient.delete_object(self.connection.storageurl, self.connection.authtoken, name, objectname)
         true
       rescue ClientException => e
         raise CloudFiles::Exception::NoSuchObject, "Object #{objectname} does not exist" if (e.status.to_s == "404")
@@ -403,7 +403,7 @@ module CloudFiles
 
     def post_with_headers(headers = {})
       begin
-        SwiftClient.post_container(cdn_enabled? ? self.connection.cdnurl : self.connection.storageurl, self.connection.authtoken, escaped_name, headers)
+        SwiftClient.post_container(cdn_enabled? ? self.connection.cdnurl : self.connection.storageurl, self.connection.authtoken, name, headers)
       rescue ClientException => e
         raise CloudFiles::Exception::NoSuchContainer, "Container #{@name} does not exist (response code: #{e.status.to_s})" unless (e.status.to_s =~ /^20/)
       end
@@ -420,7 +420,7 @@ module CloudFiles
       raise Exception::CDNNotAvailable unless cdn_available?
       headers = { "X-CDN-Enabled" => "False" }
       begin
-        SwiftClient.post_container(self.connection.cdnurl, self.connection.authtoken, escaped_name, headers)
+        SwiftClient.post_container(self.connection.cdnurl, self.connection.authtoken, name, headers)
         refresh
         true
       rescue ClientException => e
@@ -450,7 +450,7 @@ module CloudFiles
       headers = {}
       headers = {"X-Purge-Email" => email} if email
       begin
-        SwiftClient.delete_container(self.connection.cdnurl, self.connection.authtoken, escaped_name, headers)
+        SwiftClient.delete_container(self.connection.cdnurl, self.connection.authtoken, name, headers)
         true
       rescue ClientException => e
         raise CloudFiles::Exception::Connection, "Error Unable to Purge Container: #{@name}" unless (e.status.to_s > "200" && e.status.to_s < "299")
