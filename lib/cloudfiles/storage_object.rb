@@ -126,7 +126,7 @@ module CloudFiles
         headers['Range'] = range
       end
       begin
-        SwiftClient.get_object(self.container.connection.storageurl, self.container.connection.authtoken, self.container.escaped_name, escaped_name, nil, nil, &block)
+        SwiftClient.get_object(self.container.connection.storageurl, self.container.connection.authtoken, self.container.name, name, nil, nil, &block)
       end
     end
 
